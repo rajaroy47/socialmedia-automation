@@ -11,7 +11,7 @@ import multer from "multer";
 import { fileURLToPath } from "url";
 
 import connectDB from "./src/config/db.config.js";
-import { ensureDirectories, PUBLIC_DIR, GENERATED_ROOT, GENERATED_DIR } from "./src/config/paths.config.js";
+import { ensureDirectories, PUBLIC_DIR, UPLOAD_DIR, GENERATED_ROOT, GENERATED_DIR } from "./src/config/paths.config.js";
 import { logger } from "./src/utils/logger.js";
 
 import youtubeRoutes from "./src/routes/youtube.routes.js";
@@ -138,8 +138,12 @@ app.post("/api/jobs/run-post-worker", async (req, res) => {
 // ============================================
 // FILE UPLOAD (generic helper endpoint)
 // ============================================
-const uploadDir = path.join(PUBLIC_DIR, "uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = UPLOAD_DIR;
+try {
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+} catch (error) {
+    logger.error(`Could not create upload directory "${uploadDir}": ${error.message}`);
+}
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),

@@ -12,10 +12,6 @@ import crypto from "crypto";
 import Admin from "../models/admin.model.js";
 import { logger } from "../utils/logger.js";
 
-import dotenv from "dotenv";
-
-dotenv.config();
-
 const SALT_ROUNDS = 12;
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -34,10 +30,6 @@ const EFFECTIVE_SECRET = JWT_SECRET || crypto.randomBytes(48).toString("hex");
 export async function hashPassword(plainPassword) {
     return bcrypt.hash(plainPassword, SALT_ROUNDS);
 }
-
-// test
-// console.log(await hashPassword("raja,roy98@me"));
-
 
 export async function comparePassword(plainPassword, passwordHash) {
     return bcrypt.compare(plainPassword, passwordHash);

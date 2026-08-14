@@ -170,4 +170,3 @@ debugging/preview, but it's no longer what gets posted to Zernio.
   account IDs (from `/api/youtube/accounts`), not your platform usernames.
 - Category `22` (used as the YouTube default) is "People & Blogs" — change
   `categoryId` per request if you want a different default.
-
