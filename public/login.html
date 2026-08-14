@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login · Video Topics Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body {
+            background:
+                radial-gradient(circle at 15% 20%, rgba(99,102,241,0.18), transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(56,189,248,0.18), transparent 40%),
+                #0b1120;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .input-field {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
+        }
+        .input-field:focus {
+            background: rgba(255,255,255,0.06);
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover:not(:disabled) {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .shake { animation: shake 0.4s; }
+        @keyframes shake {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
+        }
+        .fade-in { animation: fadeIn 0.5s ease both; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center px-4 py-10">
+
+    <div class="w-full max-w-md fade-in">
+        <!-- Brand -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl btn-primary shadow-lg shadow-indigo-500/20 mb-4">
+                <i class="fas fa-video text-white text-xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-white">Video Topics Manager</h1>
+            <p class="text-slate-400 text-sm mt-1">Sign in with your admin credentials</p>
+        </div>
+
+        <!-- Card -->
+        <div class="glass rounded-2xl shadow-2xl p-7 sm:p-8" id="loginCard">
+            <form id="loginForm" class="space-y-5" novalidate>
+                <div>
+                    <label for="identifier" class="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                        Username or Email
+                    </label>
+                    <div class="relative">
+                        <i class="fas fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                        <input
+                            id="identifier"
+                            type="text"
+                            autocomplete="username"
+                            required
+                            placeholder="admin"
+                            class="input-field w-full pl-10 pr-3.5 py-2.5 rounded-xl text-white placeholder-slate-500 text-sm outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label for="password" class="block text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1.5">
+                        Password
+                    </label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                        <input
+                            id="password"
+                            type="password"
+                            autocomplete="current-password"
+                            required
+                            placeholder="••••••••"
+                            class="input-field w-full pl-10 pr-11 py-2.5 rounded-xl text-white placeholder-slate-500 text-sm outline-none"
+                        />
+                        <button type="button" id="togglePassword" tabindex="-1"
+                            class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Error banner -->
+                <div id="errorBanner" class="hidden items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-xl px-3.5 py-2.5">
+                    <i class="fas fa-circle-exclamation"></i>
+                    <span id="errorText">Invalid credentials</span>
+                </div>
+
+                <button
+                    type="submit"
+                    id="submitBtn"
+                    class="btn-primary w-full py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+                >
+                    <i class="fas fa-arrow-right-to-bracket" id="submitIcon"></i>
+                    <span id="submitText">Sign In</span>
+                </button>
+            </form>
+        </div>
+
+        <p class="text-center text-slate-500 text-xs mt-6">
+            <i class="fas fa-shield-halved mr-1"></i>
+            Access is restricted to authorized administrators.
+        </p>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+        const TOKEN_KEY = 'vtm_token';
+        const ADMIN_KEY = 'vtm_admin';
+
+        // Already logged in? Skip straight to the dashboard.
+        if (localStorage.getItem(TOKEN_KEY)) {
+            window.location.replace('index.html');
+        }
+
+        const form = document.getElementById('loginForm');
+        const card = document.getElementById('loginCard');
+        const errorBanner = document.getElementById('errorBanner');
+        const errorText = document.getElementById('errorText');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitIcon = document.getElementById('submitIcon');
+        const submitText = document.getElementById('submitText');
+
+        document.getElementById('togglePassword').addEventListener('click', () => {
+            const pwd = document.getElementById('password');
+            const icon = document.querySelector('#togglePassword i');
+            const show = pwd.type === 'password';
+            pwd.type = show ? 'text' : 'password';
+            icon.className = show ? 'fas fa-eye-slash text-sm' : 'fas fa-eye text-sm';
+        });
+
+        function setLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            submitIcon.className = isLoading ? 'fas fa-spinner fa-spin' : 'fas fa-arrow-right-to-bracket';
+            submitText.textContent = isLoading ? 'Signing in…' : 'Sign In';
+        }
+
+        function showError(message) {
+            errorText.textContent = message;
+            errorBanner.classList.remove('hidden');
+            errorBanner.classList.add('flex');
+            card.classList.remove('shake');
+            void card.offsetWidth; // restart animation
+            card.classList.add('shake');
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorBanner.classList.add('hidden');
+            errorBanner.classList.remove('flex');
+
+            const identifier = document.getElementById('identifier').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!identifier || !password) {
+                showError('Please enter both your username/email and password.');
+                return;
+            }
+
+            setLoading(true);
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier, password }),
+                });
+
+                let result;
+                try {
+                    result = await res.json();
+                } catch {
+                    throw new Error('Unexpected server response. Please try again.');
+                }
+
+                if (!res.ok || !result.success) {
+                    throw new Error(result.error || 'Invalid credentials');
+                }
+
+                localStorage.setItem(TOKEN_KEY, result.token);
+                localStorage.setItem(ADMIN_KEY, JSON.stringify(result.admin));
+                window.location.replace('index.html');
+            } catch (error) {
+                showError(error.message || 'Something went wrong. Please try again.');
+            } finally {
+                setLoading(false);
+            }
+        });
+    </script>
+</body>
+</html>
