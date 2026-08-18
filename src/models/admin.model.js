@@ -21,6 +21,7 @@ const adminSchema = new mongoose.Schema(
         passwordHash: {
             type: String,
             required: true,
+            select: false,
         },
         role: {
             type: String,
@@ -31,6 +32,22 @@ const adminSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        dailySceduleTimeCron: {
+            type: String,
+            default: "12 16 * * *",
+        },
+        postToInstagram: {
+            type: Boolean,
+            default: false,
+        },
+        postToYouTube: {
+            type: Boolean,
+            default: false,
+        },
+        postToFacebook: {
+            type: Boolean,
+            default: false,
+        }
     },
     { timestamps: true }
 );

@@ -82,11 +82,89 @@
             position: fixed; inset: 0; z-index: 100; background: #f4f5f9;
             display: flex; align-items: center; justify-content: center;
         }
+
+        /* Toggle Switch Styles */
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 34px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #4f46e5;
+        }
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        .toggle-switch input:disabled + .toggle-slider {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Time picker style */
+        .time-picker-wrapper {
+            position: relative;
+        }
+        .time-picker-wrapper input[type="time"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        .time-picker-wrapper input[type="time"]:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+            background: white;
+        }
+        .time-picker-wrapper input[type="time"]::-webkit-calendar-picker-indicator {
+            opacity: 0.6;
+            padding: 4px;
+            cursor: pointer;
+        }
+        .time-picker-wrapper input[type="time"]::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="min-h-screen text-slate-800">
 
-    <!-- Auth gate: shown until we've confirmed a valid session, then removed -->
+    <!-- Auth gate -->
     <div id="authGate">
         <div class="flex flex-col items-center gap-3 text-slate-400">
             <i class="fas fa-circle-notch fa-spin text-2xl"></i>
@@ -200,6 +278,100 @@
                             <option value="desc">Desc</option>
                         </select>
                     </div>
+                </div>
+            </div>
+
+            <!-- Admin Settings Panel -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 mb-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <i class="fas fa-sliders-h text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">Admin Settings</h3>
+                        <p class="text-xs text-slate-400">Configure social media posting & schedule</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Social Media Toggles -->
+                    <div class="space-y-4">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Social Media Platforms</p>
+                        
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-[#1877f2]/10 text-[#1877f2] flex items-center justify-center">
+                                    <i class="fab fa-facebook-f text-sm"></i>
+                                </div>
+                                <span class="text-sm font-medium text-slate-700">Facebook</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="postToFacebook" onchange="updateAdminSettings()" />
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-[#e4405f]/10 text-[#e4405f] flex items-center justify-center">
+                                    <i class="fab fa-instagram text-sm"></i>
+                                </div>
+                                <span class="text-sm font-medium text-slate-700">Instagram</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="postToInstagram" onchange="updateAdminSettings()" />
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-[#ff0000]/10 text-[#ff0000] flex items-center justify-center">
+                                    <i class="fab fa-youtube text-sm"></i>
+                                </div>
+                                <span class="text-sm font-medium text-slate-700">YouTube</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="postToYouTube" onchange="updateAdminSettings()" />
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Daily Schedule -->
+                    <div class="space-y-4">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Daily Video Schedule</p>
+                        
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Posting Time (24-hour format)</label>
+                            <div class="time-picker-wrapper">
+                                <input type="time" id="dailyScheduleTime" 
+                                       onchange="updateAdminSettings()"
+                                       value="16:12"
+                                       class="w-full" />
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">
+                                <i class="fas fa-clock mr-1"></i>
+                                Videos will be posted daily at this time
+                            </p>
+                        </div>
+
+                        <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-info-circle text-indigo-500 text-sm"></i>
+                                <p class="text-xs text-indigo-700">
+                                    Cron expression: <strong id="cronDisplay" class="font-mono bg-white/60 px-2 py-0.5 rounded">12 16 * * *</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5 pt-4 border-t border-slate-200 flex justify-end">
+                    <button onclick="saveAdminSettings()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-white text-sm font-semibold transition-all shadow-sm shadow-indigo-200 flex items-center gap-2">
+                        <i class="fas fa-save text-xs"></i>
+                        <span>Save Settings</span>
+                    </button>
                 </div>
             </div>
 
@@ -328,6 +500,14 @@
         let deleteId = null;
         let searchDebounce = null;
 
+        // Admin settings cache
+        let adminSettings = {
+            postToFacebook: false,
+            postToInstagram: false,
+            postToYouTube: false,
+            dailyScheduleTime: '16:12'
+        };
+
         // ============================================
         // AUTH GUARD
         // ============================================
@@ -377,11 +557,16 @@
         // API FUNCTIONS
         // ============================================
         async function apiRequest(endpoint, method = 'GET', data = null) {
+            const token = getToken();
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
             const options = {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getToken()}`,
+                    'Authorization': `Bearer ${token}`,
                 },
             };
             if (data) options.body = JSON.stringify(data);
@@ -391,6 +576,27 @@
             if (response.status === 401) {
                 logout();
                 throw new Error('Session expired. Please log in again.');
+            }
+
+            // Handle 404 Not Found
+            if (response.status === 404) {
+                const result = await response.json();
+                throw new Error(result.error || 'Resource not found');
+            }
+
+            // Handle 400 Bad Request
+            if (response.status === 400) {
+                const result = await response.json();
+                const errorMessage = result.errors 
+                    ? result.errors.map(e => e.msg).join(', ')
+                    : result.error || 'Validation error';
+                throw new Error(errorMessage);
+            }
+
+            // Handle 403 Forbidden
+            if (response.status === 403) {
+                const result = await response.json();
+                throw new Error(result.error || 'Access denied');
             }
 
             let result;
@@ -404,6 +610,100 @@
                 throw new Error(result.error || 'API request failed');
             }
             return result;
+        }
+
+        // ============================================
+        // ADMIN SETTINGS
+        // ============================================
+        async function loadAdminSettings() {
+            try {
+                const result = await apiRequest('/admin/settings');
+                const settings = result.data || {};
+                
+                // Update local cache
+                adminSettings = {
+                    postToFacebook: settings.postToFacebook || false,
+                    postToInstagram: settings.postToInstagram || false,
+                    postToYouTube: settings.postToYouTube || false,
+                    dailyScheduleTime: settings.dailyScheduleTime || '16:12'
+                };
+
+                // Update UI
+                document.getElementById('postToFacebook').checked = adminSettings.postToFacebook;
+                document.getElementById('postToInstagram').checked = adminSettings.postToInstagram;
+                document.getElementById('postToYouTube').checked = adminSettings.postToYouTube;
+                
+                const timeInput = document.getElementById('dailyScheduleTime');
+                if (timeInput) {
+                    timeInput.value = adminSettings.dailyScheduleTime;
+                }
+                
+                updateCronDisplay(adminSettings.dailyScheduleTime);
+            } catch (error) {
+                console.error('Error loading admin settings:', error);
+                // Use defaults if settings can't be loaded
+                const defaultTime = '16:12';
+                adminSettings.dailyScheduleTime = defaultTime;
+                const timeInput = document.getElementById('dailyScheduleTime');
+                if (timeInput) {
+                    timeInput.value = defaultTime;
+                }
+                updateCronDisplay(defaultTime);
+                
+                // Only show toast for errors that aren't 404
+                if (error.message && !error.message.includes('404') && !error.message.includes('not found')) {
+                    showToast('Could not load settings. Using defaults.', 'info');
+                }
+            }
+        }
+
+        function updateAdminSettings() {
+            const timeInput = document.getElementById('dailyScheduleTime');
+            const time = timeInput ? timeInput.value : '16:12';
+            updateCronDisplay(time);
+        }
+
+        function updateCronDisplay(time) {
+            if (!time) return;
+            const [hour, minute] = time.split(':');
+            const cron = `${parseInt(minute)} ${parseInt(hour)} * * *`;
+            const cronDisplay = document.getElementById('cronDisplay');
+            if (cronDisplay) {
+                cronDisplay.textContent = cron;
+            }
+        }
+
+        async function saveAdminSettings() {
+            const postToFacebook = document.getElementById('postToFacebook')?.checked || false;
+            const postToInstagram = document.getElementById('postToInstagram')?.checked || false;
+            const postToYouTube = document.getElementById('postToYouTube')?.checked || false;
+            const timeInput = document.getElementById('dailyScheduleTime');
+            const dailyScheduleTime = timeInput ? timeInput.value : '16:12';
+
+            // Validate time format
+            if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(dailyScheduleTime)) {
+                showToast('Please enter a valid time in HH:mm format', 'error');
+                return;
+            }
+
+            const settings = {
+                postToFacebook,
+                postToInstagram,
+                postToYouTube,
+                dailyScheduleTime
+            };
+
+            try {
+                await apiRequest('/admin/settings', 'PUT', settings);
+                adminSettings = settings;
+                updateCronDisplay(dailyScheduleTime);
+                showToast('Settings saved successfully!', 'success');
+                
+                // Reload settings to confirm
+                await loadAdminSettings();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
         }
 
         // ============================================
@@ -452,7 +752,7 @@
         }
 
         // ============================================
-        // RENDER TOPICS (desktop table + mobile cards)
+        // RENDER TOPICS
         // ============================================
         function renderTopics(topics) {
             const tbody = document.getElementById('topicsTableBody');
@@ -718,6 +1018,7 @@
             document.getElementById('appRoot').classList.remove('hidden');
             renderAdminChip();
             loadTopics();
+            loadAdminSettings();
         });
     </script>
 </body>

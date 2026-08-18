@@ -64,8 +64,16 @@ function isQuotaOrRateLimitError(error) {
  * @param {number} [opts.startIndex] - override which key to try first
  */
 export async function runWithKeyRotation({ providerName, keys, taskFn, startIndex }) {
-    const validKeys = keys
-        .map((key, idx) => ({ key, idx }))
+    // Each entry in `keys` can be either a plain string (just the API key,
+    // e.g. HuggingFace) or an object `{ key, meta }` where `meta` carries
+    // extra per-key config (e.g. ElevenLabs' matching VOICE_ID). `meta` is
+    // passed through to `taskFn` as its 3rd argument.
+    const normalized = keys.map((entry) =>
+        typeof entry === "string" || !entry ? { key: entry, meta: undefined } : entry
+    );
+
+    const validKeys = normalized
+        .map((entry, idx) => ({ ...entry, idx }))
         .filter((entry) => !!entry.key && entry.key.trim().length > 0);
 
     if (validKeys.length === 0) {
@@ -95,12 +103,12 @@ export async function runWithKeyRotation({ providerName, keys, taskFn, startInde
             );
         }
 
-        const { key, idx } = rotated[position];
+        const { key, idx, meta } = rotated[position];
         const keyLabel = `${providerName}_KEY_${idx + 1}`;
 
         try {
             logger.info(`[${providerName}] Trying ${keyLabel}...`);
-            const result = await taskFn(key, keyLabel);
+            const result = await taskFn(key, keyLabel, meta);
             lastGoodIndex.set(providerName, idx);
             logger.success(`[${providerName}] ${keyLabel} succeeded.`);
             return result;

@@ -18,6 +18,7 @@ import youtubeRoutes from "./src/routes/youtube.routes.js";
 import instagramRoutes from "./src/routes/instagram.routes.js";
 import videoTopicsRoutes from "./src/routes/videoTopics.routes.js";
 import authRoutes from "./src/routes/auth.routes.js";
+import adminRoutes from "./src/routes/admin.routes.js";
 
 import { protect } from "./src/middlewares/auth.middleware.js";
 import { ensureAdminSeed } from "./src/services/auth.service.js";
@@ -26,6 +27,8 @@ import { scheduleDailyVideoJob, runDailyVideoJob } from "./src/jobs/dailyVideo.j
 import { schedulePostWorker, runPostWorker } from "./src/jobs/postWorker.job.js";
 import { generateVideoForTopic } from "./src/services/pipeline.service.js";
 import { seedTopics, getNextPendingTopic } from "./src/services/topic.service.js";
+
+import Admin from "./src/models/admin.model.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +64,7 @@ app.get("/api/health", (req, res) => {
         endpoints: {
             youtube: "/api/youtube",
             instagram: "/api/instagram",
+            admin: "/api/admin",
         },
         timestamp: new Date().toISOString(),
     });
@@ -72,8 +76,8 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/youtube", youtubeRoutes);
 app.use("/api/instagram", instagramRoutes);
-// Everything backing the Topics Manager UI requires a valid admin login.
-app.use("/api", protect, videoTopicsRoutes)
+app.use("/api/admin", adminRoutes);
+app.use("/api", protect, videoTopicsRoutes);
 
 // ============================================
 // TOPIC QUEUE (seed / inspect)
@@ -101,10 +105,9 @@ app.get("/api/topics/next", async (req, res) => {
 });
 
 // ============================================
-// MANUAL PIPELINE TRIGGERS (handy for testing)
+// MANUAL PIPELINE TRIGGERS
 // ============================================
 
-// Generates a video only (does not post it anywhere).
 app.post("/api/generate-video", async (req, res) => {
     try {
         const { topic } = req.body;
@@ -119,8 +122,6 @@ app.post("/api/generate-video", async (req, res) => {
     }
 });
 
-// Manually fire the daily job / post worker right now instead of waiting
-// for their cron schedules — useful while testing.
 app.post("/api/jobs/run-daily-video", async (req, res) => {
     runDailyVideoJob()
         .then(() => logger.info("Manual daily video job run complete"))
@@ -136,7 +137,7 @@ app.post("/api/jobs/run-post-worker", async (req, res) => {
 });
 
 // ============================================
-// FILE UPLOAD (generic helper endpoint)
+// FILE UPLOAD
 // ============================================
 const uploadDir = UPLOAD_DIR;
 try {
@@ -173,12 +174,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
 
 import sendEmail from "./src/services/sendEmail.service.js";
 
-const gmailBody = "<h3>This is <u>also</u> a Demo Message</h3>";
-
-// setTimeout(()=>{
-//     sendEmail("mrajaroy.47@gmail.com", "Test Mail", gmailBody)
-// }, 5000)
-
 // ============================================
 // START SERVER
 // ============================================
@@ -187,28 +182,61 @@ async function start() {
     try {
         await connectDB();
         dbConnected = true;
+        logger.info("✅ Database connected successfully");
     } catch (error) {
-        logger.warn("Starting server without a confirmed DB connection — topic/post queue routes will fail until MongoDB is reachable.");
+        logger.warn("⚠️ Starting server without a confirmed DB connection — topic/post queue routes will fail until MongoDB is reachable.");
     }
 
     if (dbConnected) {
         try {
             await ensureAdminSeed();
+            logger.info("✅ Admin seed check complete");
+            
+            // 🔥 SCHEDULE THE DAILY VIDEO JOB - NOW AWAITED
+            try {
+                const result = await scheduleDailyVideoJob();
+                if (result.success) {
+                    logger.info(`✅ Daily video job scheduled: ${result.cronExpression}`);
+                } else {
+                    logger.warn(`⚠️ Daily video job scheduled with fallback: ${result.cronExpression}`);
+                }
+            } catch (error) {
+                logger.error("❌ Failed to schedule daily video job:", error.message);
+            }
+            
         } catch (error) {
-            logger.error("Failed to seed admin account:", error.message);
+            logger.error("Failed to seed admin account or schedule job:", error.message);
         }
     } else {
-        logger.warn("Skipping admin seed check — no DB connection. Login will fail until MongoDB is reachable and the server is restarted.");
+        logger.warn("Skipping admin seed check — no DB connection.");
     }
 
-    scheduleDailyVideoJob();
+    // Schedule post worker (non-blocking)
     schedulePostWorker();
 
     app.listen(PORT, () => {
-        logger.success(`Server running on http://localhost:${PORT}`);
-        logger.info(`Generated media root: ${GENERATED_ROOT}`);
-        logger.info(`BASE_URL for public media links: ${process.env.BASE_URL || `http://localhost:${PORT}`}`);
+        logger.success(`🚀 Server running on http://localhost:${PORT}`);
+        logger.info(`📁 Generated media root: ${GENERATED_ROOT}`);
+        logger.info(`🔗 BASE_URL: ${process.env.BASE_URL || `http://localhost:${PORT}`}`);
     });
 }
 
 start();
+
+// ============================================
+// LOG ADMIN SETTINGS ON STARTUP
+// ============================================
+(async function logAdminSettings() {
+    try {
+        const admin = await Admin.findOne({});
+        if (admin) {
+            logger.info("📊 Current Admin Settings:");
+            logger.info(`  📅 Daily Cron: ${admin.dailySceduleTimeCron}`);
+            logger.info(`  📘 Facebook: ${admin.postToFacebook ? '✅' : '❌'}`);
+            logger.info(`  📸 Instagram: ${admin.postToInstagram ? '✅' : '❌'}`);
+            logger.info(`  ▶️  YouTube: ${admin.postToYouTube ? '✅' : '❌'}`);
+        }
+    } catch (error) {
+        // Silent fail - this is just for logging
+    }
+})();

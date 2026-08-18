@@ -58,7 +58,9 @@ export async function loginAdmin(identifier, password) {
 
     const admin = await Admin.findOne({
         $or: [{ username: identifier.toLowerCase().trim() }, { email: identifier.toLowerCase().trim() }],
-    });
+    }).select("+passwordHash"); // passwordHash has `select: false` on the schema — it
+    // has to be explicitly opted back in here, or `admin.passwordHash` comes back
+    // `undefined` and bcrypt.compare() throws "Illegal arguments: string, undefined".
 
     // Same generic error whether the account doesn't exist or the password is
     // wrong — avoids leaking which usernames/emails are valid.

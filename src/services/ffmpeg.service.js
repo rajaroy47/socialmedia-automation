@@ -55,19 +55,68 @@ export async function mixAudioWithBackgroundMusic(voiceoverPath, bgMusicPath, ou
 
         getDuration(absVoice)
             .catch(() => 30)
-            .then((duration) => {
-                const safeDuration = Math.max(1, duration || 30);
+            .then((rawDuration) => {
+                // BUG FOUND: `duration || 30` does NOT catch every bad
+                // value ffprobe can return. If ffprobe can't determine a
+                // file's length (which happens for some MP3s saved from
+                // streamed API responses, like ElevenLabs' output), it
+                // reports the string "N/A" instead of a number — and "N/A"
+                // is truthy, so the old fallback let it straight through.
+                // `Math.max(1, "N/A")` then evaluates to NaN, and
+                // `NaN.toFixed(3)` produces the literal string "NaN",
+                // which got embedded directly into the ffmpeg command as
+                // `atrim=0:NaN` and `-t NaN` — invalid arguments, which is
+                // exactly the EINVAL / "4294967274" crash you saw. Fixed by
+                // explicitly validating the value is a finite, positive
+                // number before using it anywhere.
+                const parsed = Number(rawDuration);
+                const safeDuration = Number.isFinite(parsed) && parsed > 0 ? Math.max(1, parsed) : 30;
 
+                if (!Number.isFinite(parsed) || parsed <= 0) {
+                    logger.warn(
+                        `Voiceover duration was unreadable (ffprobe returned "${rawDuration}") — using 30s fallback for the music mix.`
+                    );
+                }
+
+                // Cap the fade length so it can never exceed half the
+                // clip (avoids overlapping in/out fades on very short
+                // narration, which some ffmpeg builds reject).
+                const fadeDuration = Math.min(2, safeDuration / 2);
+                const fadeOutStart = Math.max(0, safeDuration - fadeDuration);
+
+                // NOTE: this used to be built with `.audioFilters([...])`
+                // (a *simple* filtergraph, i.e. `-af`), which only ever
+                // applies to a single stream — invalid with two separate
+                // inputs (voice + music) feeding an `amix`. It also used
+                // the `aloop` filter with a huge `size=2e9` sample buffer
+                // plus newer `amix` sub-options (`dropout_transition`,
+                // `normalize`) that aren't reliably supported across every
+                // ffmpeg build — that combination is what was throwing
+                // "ffmpeg exited with code 4294967274" (that huge number is
+                // just -22 / EINVAL reported as an unsigned 32-bit code).
+                //
+                // Fixed by: (1) using `-filter_complex` with proper labeled
+                // pads instead of `-af`, and (2) looping the music at the
+                // input/demuxer level with `-stream_loop -1` instead of the
+                // memory-heavy `aloop` filter, and (3) sticking to the
+                // plain, long-supported `amix=inputs=2:duration=first`.
                 ffmpeg()
                     .input(absVoice)
                     .input(absMusic)
-                    .audioFilters([
-                        `afade=t=in:ss=0:d=2`,
-                        `afade=t=out:st=${Math.max(0, safeDuration - 2)}:d=2`,
-                        `volume=0.15`,
-                        `amix=inputs=2:duration=first`,
+                    .inputOptions(["-stream_loop", "-1"])
+                    .complexFilter([
+                        `[1:a]atrim=0:${safeDuration.toFixed(3)},volume=0.45,` +
+                        `afade=t=in:ss=0:d=${fadeDuration.toFixed(3)},` +
+                        `afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeDuration.toFixed(3)}[bg]`,
+                        `[0:a][bg]amix=inputs=2:duration=first[aout]`,
                     ])
-                    .outputOptions(["-ac 2", "-c:a aac", "-b:a 192k", "-shortest"])
+                    .outputOptions([
+                        "-map", "[aout]",
+                        "-ac", "2",
+                        "-c:a", "aac",
+                        "-b:a", "192k",
+                        "-t", safeDuration.toFixed(3),
+                    ])
                     .on("end", () => {
                         logger.success(`Audio mixed: ${path.basename(absOut)}`);
                         resolve(absOut);
@@ -93,7 +142,17 @@ export async function createProfessionalVideo(images, audioPath, outputName) {
 
     const outputPath = path.join(GENERATED_DIR.videos, outputName || `video_${Date.now()}.mp4`);
 
-    const audioDuration = await getDuration(audioPath);
+    const rawAudioDuration = await getDuration(audioPath);
+    const parsedAudioDuration = Number(rawAudioDuration);
+    const audioDuration =
+        Number.isFinite(parsedAudioDuration) && parsedAudioDuration > 0 ? parsedAudioDuration : 30;
+
+    if (!Number.isFinite(parsedAudioDuration) || parsedAudioDuration <= 0) {
+        logger.warn(
+            `Narration duration was unreadable (ffprobe returned "${rawAudioDuration}") — using 30s fallback for video timing.`
+        );
+    }
+
     const n = images.length;
 
     let clipDuration = Math.max(

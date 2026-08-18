@@ -31,7 +31,7 @@ const videoTopicSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
-
+        
         completedAt: {
             type: Date,
             default: null,
